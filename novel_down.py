@@ -1,6 +1,7 @@
 import requests
 import time
 from lxml import etree
+from requests.adapters import HTTPAdapter
 
 
 class NovelDownloader:
@@ -11,11 +12,24 @@ class NovelDownloader:
             self.links = f.readlines()
 
     def download(self):
+        s = requests.Session()
+        s.mount('http://', HTTPAdapter(max_retries=5))
+        s.mount('https://', HTTPAdapter(max_retries=5))
         # 爬取前30本小说
         for link in self.links[0:30]:
             print('flag')
-            # 请求小说链接
-            r = requests.get(link, headers=self.headers)
+            try:
+                # 请求小说链接
+                r = requests.get(link, headers=self.headers, timeout=10)
+            except:
+                print('网络错误(1)')
+                while True:
+                    try:
+                        r = requests.get('http://www.baidu.com')
+                        if r.status_code == 200:
+                            r = requests.get(link, headers=self.headers, timeout=10)
+                            break
+                    except:pass
             time.sleep(1)
             # 页面解析
             html = etree.HTML(r.text.encode('ISO-8859-1').decode('utf-8', "ignore"))
@@ -50,13 +64,29 @@ class NovelDownloader:
                 with open('./' + title + '.txt', 'a') as f:
                     f.write('------------' + '\n' + chapter_names[flag] + '\n')
                     flag += 1
-                c = requests.get(link.replace('\n', '') + chapter_link)
-                html = etree.HTML(c.text.encode('ISO-8859-1').decode('utf-8', "ignore"))
-                contents = html.xpath('//*[@id="content"]//text()')
-                for content in contents:
-                    # print(content.replace('\xa0', ' ').replace('\u30fb', '.'))
-                    with open('./' + title + '.txt', 'a') as f:
-                        f.write(content.replace('\xa0', ' ').replace('\u30fb', '.') + '\n')
+                try:
+                    c = requests.get(link.replace('\n', '') + chapter_link, headers=self.headers, timeout=10)
+                    html = etree.HTML(c.text.encode('ISO-8859-1').decode('utf-8', "ignore"))
+                    contents = html.xpath('//*[@id="content"]//text()')
+                    for content in contents:
+                        # print(content.replace('\xa0', ' ').replace('\u30fb', '.'))
+                        with open('./' + title + '.txt', 'a') as f:
+                            f.write(content.replace('\xa0', ' ').replace('\u30fb', '.') + '\n')
+                except:
+                    print('网络错误(2)')
+                    while True:
+                        try:
+                            r = requests.get('http://www.baidu.com')
+                            if r.status_code == 200:
+                                c = requests.get(link.replace('\n', '') + chapter_link, headers=self.headers, timeout=10)
+                                html = etree.HTML(c.text.encode('ISO-8859-1').decode('utf-8', "ignore"))
+                                contents = html.xpath('//*[@id="content"]//text()')
+                                for content in contents:
+                                    # print(content.replace('\xa0', ' ').replace('\u30fb', '.'))
+                                    with open('./' + title + '.txt', 'a') as f:
+                                        f.write(content.replace('\xa0', ' ').replace('\u30fb', '.') + '\n')
+                                break
+                        except:pass
 
 
 download = NovelDownloader()
